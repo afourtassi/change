@@ -7,3 +7,7 @@ Sept.20
 Sept.29
 * trained word2vec with epoch 3,10,25,50,100
 * generated first simulation results
+
+Oct. 14
+* divide the data to evenly large fiels
+* try to solve the personal name problems
