@@ -21,6 +21,6 @@ Run `2-plot_change_per_category.ipynb` to
 		- global metric
 		- local metric
 - Finding 2:
-	- W2V-SIM: similarity w/ Goolge's Word2Vec embeddings
+	- Google-W2V-SIM: similarity w/ Goolge's Word2Vec embeddings
 		- semantic category
 		- lexical category
