@@ -12,7 +12,7 @@ Run `1-train_word_embeddings.ipynb` to
 ## Step 2
 
 Run `2-plot_change_per_category.ipynb` to
-- save local and global semantic changes to `embedding_sift.csv`
+- save local and global semantic changes to `childes_data/embedding_shift.csv`
 - Finding 1:
 	- semantic category
 		- global metric
