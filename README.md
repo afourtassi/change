@@ -12,4 +12,15 @@ Run `1-train_word_embeddings.ipynb` to
 ## Step 2
 
 Run `2-plot_change_per_category.ipynb` to
-- save local and global semantic changes to ``
+- save local and global semantic changes to `embedding_sift.csv`
+- Finding 1:
+	- semantic category
+		- global metric
+		- local metric
+	- lexical category
+		- global metric
+		- local metric
+- Finding 2:
+	- W2V-SIM: similarity w/ Goolge's Word2Vec embeddings
+		- semantic category
+		- lexical category
