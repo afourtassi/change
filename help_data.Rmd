@@ -34,6 +34,177 @@ items <- get_item_data() %>%
   dplyr::filter(language %in% languages) %>%
   select(item_id, definition, category, lexical_class)
 
-feather::write_feather(data_cdi, "data/data_cdi.feather")
+write.csv(items, "data/data_cdi.csv")
+
+trim_all_definition<-function(def_list){
+  def_list<- def_list %>%
+    mutate(definition= gsub(" \\s*\\([^\\)]+\\)","", definition)) %>%
+    mutate(definition= gsub("[*].*$","", definition)) %>%
+    mutate(definition= gsub("\\/.*", "", definition)) %>%
+    filter(definition!= "babysitter's name", 
+           definition!= "child's own name", 
+           definition!= "pet's name") %>%
+    mutate(definition= gsub("[[:punct:]]", "", definition)) 
+  
+  return(def_list)
+}
+
+categories <- read.csv("childes_data/data_cdi.csv") %>%
+  trim_all_definition() %>%
+  filter(!duplicated(definition)) %>% #Keep only the first occurrence of polysemous words (not a good criterion, but a simple one)
+  rename(word = definition) %>%
+  select(-X, -item_id) 
+
+change <- read.csv("childes_data/embedding-shifts.csv") %>%
+  rename(word = X)
+
+
+change_by_category <- categories %>%
+  left_join(change) %>%
+  filter(!(is.na(local))) %>%
+  gather(measure, value, local, global)
+
+freq <- read.csv("childes_data/log_freq.csv") %>%
+  rename(word = uni_lemma)
 
 ```
+
+Syntactic category
+```{r}
+
+change_sum <- change_by_category %>%
+  group_by(lexical_class, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se,)  
+
+
+ggplot(change_sum, 
+       aes(x = reorder(lexical_class, mean), y = mean)) + 
+  geom_col(fill="grey")+
+  geom_pointrange(aes(ymin = lower, ymax = upper), 
+                  position = position_dodge(width = .1), size = 0.4, fatten = 2) + 
+  xlab("category") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  facet_grid(measure~., scales ="free")+
+  expand_limits(y = 0)
+
+#Correlation with frequency
+freq <- read.csv("childes_data/log_freq.csv") %>%
+  rename(word = uni_lemma)
+
+change_by_freq <- change_by_category %>%
+  left_join(freq) %>%
+  filter(!is.na(freq)) 
+  
+ggplot(change_by_freq, 
+       aes(x = value, y = freq)) +
+  geom_point(alpha=0.2)+
+  geom_smooth(method = lm)+
+  xlab("Change") +ylab("Frequency") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  facet_grid(. ~ measure, scales ="free")
+
+
+ggplot(change_by_freq, 
+       aes(x = value, y = freq)) +
+  geom_point(alpha=0.2)+
+  geom_smooth(method = lm)+
+  xlab("Change") +ylab("Frequency") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  facet_grid(lexical_class ~ measure, scales ="free")
+
+
+#Correlation with age of acqusition (one way to make connection with uptake)
+
+model <- lm(data = filter(change_by_freq, measure=="global"), formula = value ~ freq )
+
+model <- lmer(value ~ freq + ( freq | lexical_class), data = filter(change_by_freq, measure=="local"))
+
+```
+
+Semantic category
+
+```{r}
+
+change_total <- change_sum %>%
+  group_by(measure) %>%
+  summarise(sum = sum(n))
+
+change_sum <- change_by_category %>%
+  group_by(category, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -se) %>%
+  left_join(change_total) %>%
+  mutate(percent = (100*n)/sum) %>%
+  filter(percent > 1)
+
+
+ggplot(filter(change_sum, measure =='local'), 
+       aes(x = reorder(category, mean), y = mean)) + 
+  geom_col(fill="grey")+
+  #geom_pointrange(aes(ymin = lower, ymax = upper), 
+  #                position = position_dodge(width = .1), size = 0.4, fatten = 2) + 
+  xlab("category") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  facet_grid(measure~., scales ="free")+
+  expand_limits(y = 0)
+
+
+ggplot(filter(change_sum, measure =='local'), 
+       aes(x = reorder(category, mean), y = mean)) + 
+  geom_col(fill="grey")+
+  #geom_pointrange(aes(ymin = lower, ymax = upper), 
+  #                position = position_dodge(width = .1), size = 0.4, fatten = 2) + 
+  xlab("category") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  facet_grid(.~measure, scales ="free")+
+  expand_limits(y = 0)
+
+ggplot(filter(change_sum, measure =='global'), 
+       aes(x = reorder(category, mean), y = mean)) + 
+  geom_col(fill="grey")+
+  #geom_pointrange(aes(ymin = lower, ymax = upper), 
+  #                position = position_dodge(width = .1), size = 0.4, fatten = 2) + 
+  xlab("category") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  facet_grid(.~measure, scales ="free")+
+  expand_limits(y = 0)
+
+
+
+```
+
