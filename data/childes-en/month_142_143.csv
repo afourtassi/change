@@ -1,0 +1,2 @@
+"","id","speaker_id","utterance_order","transcript_id","corpus_id","gloss","num_tokens","stem","part_of_speech","speaker_code","speaker_name","speaker_role","target_child_id","target_child_age","target_child_name","target_child_sex","type","media_end","media_start","media_unit","collection_id","collection_name","num_morphemes","language","corpus_name"
+"1",3796920,5483,10,9806,83,"it's okay",2,"it okay","pro:per adj","INV",NA,"Investigator",5482,142.002915870962,NA,"female","declarative",NA,NA,NA,4,"Clinical-MOR",3,"eng","Gillam"
