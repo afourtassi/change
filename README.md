@@ -1,26 +1,23 @@
-# childes_language
-Exploring language changes with CHILDES
+# Exploring patterns of stability and change in caregivers' word usage across early childhood
 
-## Step 1
+## Training Word2Vec Models
 
-Run `1-train_word_embeddings.ipynb` to 
+There are four ipython notebooks for training different word2vec models on different data: English, North American (NA) English, Shuffling (once) on English, five times shuffling on English. 
+
+For instance, run `1-train_word_embeddings-English.ipynb` to 
 - preprocessing childes data
 	- replace proper names with `$name$` and interjections with `$co$`
-- split data into 12 periods, 1M tokens per period
-- train word embeddings on each period
+- split data into 6 periods, 2M tokens per epoch
+- train word embeddings on each epoch
+The output for this ipython notebook will be saved in `embeddings-over-time/embeddings-English-NA-2M-ep25-f15.pickle`
 
-## Step 2
+## Saving Semantic Changes to csv files
 
-Run `2-plot_change_per_category.ipynb` to
-- save local and global semantic changes to `childes_data/embedding_shift.csv`
-- Finding 1:
-	- semantic category
-		- global metric
-		- local metric
-	- lexical category
-		- global metric
-		- local metric
-- Finding 2:
-	- Google-W2V-SIM: similarity w/ Goolge's Word2Vec embeddings
-		- semantic category
-		- lexical category
+There are four ipython notebooks for visualizing semantic changes and save these changes in csv files. Later, we use R to do analysis on these changes. 
+For instance, run `2-plot_change_by_category-English.ipynb`. 
+
+The output of this file will be saved in `data/cdi_output_en`
+
+## Analysis
+
+The analysis code is in R. Please refer to the R code in the repository. 
