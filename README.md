@@ -9,7 +9,7 @@ For instance, run `1-train_word_embeddings-English.ipynb` to
 	- replace proper names with `$name$` and interjections with `$co$`
 - split data into 6 periods, 2M tokens per epoch
 - train word embeddings on each epoch
-The output for this ipython notebook will be saved in `embeddings-over-time/embeddings-English-NA-2M-ep25-f15.pickle`
+The output for this ipython notebook will be saved in `embeddings-over-time/embeddings-English-NA-1M-ep25-f15.pickle`
 
 ## Saving Semantic Changes to csv files
 
