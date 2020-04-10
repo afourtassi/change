@@ -27,7 +27,7 @@ We take the `german` language for example, whose raw csv files sit in `./data/ge
 
 2. Train models </br>
    ```shell
-   python word2vec.py
+   python word2vec.py \
        --source_dir ./data/german/ \
        --dest_dir ./output/german/ \
        --dim 100 \
