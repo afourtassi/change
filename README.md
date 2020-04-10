@@ -1,14 +1,25 @@
 # Exploring patterns of stability and change in caregivers' word usage across early childhood
 
-## Training Word2Vec Models
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-There are three steps to trian dynamic word embeddings on one language. 
+This repository implements dynamic word embeddings for exploring the language variations of caregivers across multiple languages in CHILDES dataset. 
 
-1. `python preprocess.py`
-2. `python word2vec.py`
-3. `python generate_similarities.py`
-4. run the code inside `r_analysis` folder to visualize the results.
+### Setup Environment
 
-## Analysis
+#### Install via pip:
+1. install requirements </br>
+   ```> conda env create -f environment.yml```
 
-The analysis code is in R. Please refer to the R code in the repository. 
+### Train dynamic word embeddings
+1. Preprocess data </br>
+   ```> python preprocess.py``` </br>
+
+2. Train models </br>
+   ```> python word2vec.py```
+
+3. Generate outputs on language variations  </br>
+   ```> python generate_outputs.py```
+
+### Analysis
+
+The analysis code is in R. Please refer to `analysis` folder in the repository. 
