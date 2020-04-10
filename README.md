@@ -6,7 +6,7 @@ This repository implements dynamic word embeddings for exploring the language va
 
 ### Setup Environment
 
-#### Install via pip:
+#### Install via conda:
 1. install requirements </br>
    ```conda env create -f environment.yml```
 
