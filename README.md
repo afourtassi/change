@@ -21,7 +21,6 @@ We take the `german` language for example, whose raw csv files sit in `./data/ge
        --source_dir ./data/german/raw \
        --dest_dir ./data/german/ \
        --num_epochs 2 \
-       --num_shuffles 5 \
        --num_shuffles 5       
    ```
 
