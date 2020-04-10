@@ -21,7 +21,8 @@ We take the `german` language for example, whose raw csv files sit in `./data/ge
        --source_dir ./data/german/raw \
        --dest_dir ./data/german/ \
        --num_epochs 2 \
-     --num_shuffles 5       
+       --num_shuffles 5       
+	     --num_shuffles 5       
    ```
 
 2. Train models </br>
@@ -30,7 +31,7 @@ We take the `german` language for example, whose raw csv files sit in `./data/ge
        --source_dir ./data/german/ \
        --dest_dir ./output/german/ \
        --dim 100 \
-      --min_count 15 \
+       --min_count 15 \
        --n_epochs 100 \
        --window 5 \
        --negative 5 \
