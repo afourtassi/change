@@ -18,8 +18,6 @@ from scipy import spatial
 from collections import Counter
 from pathlib import Path
 
-random.seed(123)
-
 
 def read_docs(csv_file, column='stem'):
     """read stem utterances from childes csv files"""
@@ -42,9 +40,19 @@ def read_docs(csv_file, column='stem'):
 #                 ntl.append('$co$')
             else:
                 ntl.append(s)
-
-        ret_list.append(ntl)
+        if ntl != ['nan']: # add as a sentence only if we have meaningful input
+            ret_list.append(ntl)
     return ret_list
+
+
+def write_sentences(sentences, output_path):
+    """write sentences to a file"""
+    with open(output_path, "w") as out:
+        for sent in sentences:
+            sent = ' '.join(sent)
+            if sent.strip():
+                out.write(sent)
+                out.write("\n")
 
 
 def get_token_num_per_file(childes_files):
@@ -65,20 +73,27 @@ def divide_corpus(num_tokens, threshold_num):
     months = []
     periods = []
 
+    controlled_token_nums = [] 
+
     for i, num in enumerate(num_tokens):
         if num != 0:
             window.append(num)
             months.append(i)
         if sum(window) >= threshold_num:
             periods.append(months)
+            controlled_token_nums.append(sum(window))
             print(sum(window), months, sum(months)/len(months))
             window = []
             months = []
 
-    # when break out
-    periods.append(months)
-    print(sum(window), months, sum(months)/len(months))
-    return periods
+    # when break out without recording
+    if sum(window) < threshold_num:
+        periods.append(months)
+        controlled_token_nums.append(sum(window))
+        print(sum(window), months, sum(months)/len(months))
+        print("controlled_token_nums")
+        print(controlled_token_nums)
+    return periods, controlled_token_nums
 
 
 def aggregate_corpus_by_periods(childes_files, periods, dest_dir):
@@ -94,12 +109,52 @@ def aggregate_corpus_by_periods(childes_files, periods, dest_dir):
 
         # write docs into one file
         output_filename = "period_{}.txt".format(i)
-        with open(os.path.join(dest_dir, output_filename), 'w') as out:
-            for sent in sents:
-                sent = ' '.join(sent)
-                if sent.strip() and sent != "nan":
-                    out.write(sent)
-                    out.write("\n")
+        write_sentences(sents, os.path.join(dest_dir, output_filename))
+
+
+def create_shuffled_divided_corpus(childes_files, num_tokens, controlled_token_nums, dest_dir, shuffle_id):
+    """use controlled_token_nums to create shuffled corpus of similar sizes"""
+    
+    # make directory for the shuffle
+    shuffled_folder = os.path.join(dest_dir, "shuffle_{}".format(shuffle_id))
+    Path(shuffled_folder).mkdir(parents=True, exist_ok=True)
+
+    # get all sentences
+    sentences = []  
+    for filename in childes_files:
+        sentences.extend(read_docs(filename))
+
+    print("Before shuffling:")
+    print(sentences[0])
+    random.shuffle(sentences)
+    print("After shuffling")
+    print(sentences[0])
+        
+    # start index of sentences
+    start = 0
+    for i, window_size in enumerate(controlled_token_nums):
+        num_tokens = 0
+        sents_per_period = []
+        
+        for j, sentence in enumerate(sentences[start:]):
+            sents_per_period.append(sentence)
+            num_tokens += len(sentence)
+            if num_tokens >= window_size:
+
+                # write down the chunk of corpus
+                output_filename = "period_{}.txt".format(i)
+                print(output_filename, "corpus size: ", num_tokens)
+                write_sentences(sents_per_period, os.path.join(shuffled_folder, output_filename))
+                
+                # update start
+                start += (j+1)
+                break
+
+        # when breakout without recording
+        if num_tokens < window_size:
+            output_filename = "period_{}.txt".format(i)
+            print(output_filename, "corpus size: ", num_tokens)
+            write_sentences(sents_per_period, os.path.join(shuffled_folder, output_filename))
 
 
 def main():
@@ -107,11 +162,12 @@ def main():
 
     parser = argparse.ArgumentParser(description="main training script for word2vec dynamic word embeddings...")
     parser.add_argument("--source_dir", type=str, default="./data/german/raw", help="source dir")
-    parser.add_argument("--dest_dir", type=str, default="./data/german/proc", help="dest dir")
+    parser.add_argument("--dest_dir", type=str, default="./data/german/", help="dest dir")
 
     # args for dividing the corpus
     parser.add_argument('--num_epochs', type=int, default=2, help='Number of epochs (parts) we divide the corpus.')
     parser.add_argument('--token_num_per_epoch', type=float, default=None, help='Number of tokens per epoch. Set None by default, when used, we stop using num_epochs.')
+    parser.add_argument('--num_shuffles', type=int, default=5, help='Number of shuffling.')
 
     # args for 
     args = parser.parse_args()
@@ -131,12 +187,15 @@ def main():
     else:
         threshold_num = int(sum(num_tokens) / args.num_epochs)
 
-    # get periods for each epoch
-    periods = divide_corpus(num_tokens, threshold_num)
+    ### generate divided original data
+    periods, controlled_token_nums = divide_corpus(num_tokens, threshold_num)
+    aggregate_corpus_by_periods(childes_files, periods, os.path.join(args.dest_dir, 'proc'))
 
-    # generate output files
-    aggregate_corpus_by_periods(childes_files, periods, args.dest_dir)
-
+    ## generate divided shuffled data
+    for shuffle_id in range(args.num_shuffles):
+        print("shuffle_{}".format(shuffle_id))
+        create_shuffled_divided_corpus(childes_files, num_tokens, \
+            controlled_token_nums, args.dest_dir, shuffle_id)
 
 
 if __name__ == "__main__":
