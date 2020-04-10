@@ -8,14 +8,37 @@ This repository implements dynamic word embeddings for exploring the language va
 
 #### Install via pip:
 1. install requirements </br>
-   ```> conda env create -f environment.yml```
+   ```conda env create -f environment.yml```
 
 ### Train dynamic word embeddings
+
+We take the `german` language for example, whose raw csv files sit in `./data/german/raw/`.
+
 1. Preprocess data </br>
-   ```> python preprocess.py``` </br>
+
+   ```shell
+   python preprocess.py \
+       --source_dir ./data/german/raw \
+       --dest_dir ./data/german/ \
+       --num_epochs 2 \
+	   --num_shuffles 5       
+   ```
 
 2. Train models </br>
-   ```> python word2vec.py```
+   ```shell
+   python word2vec.py
+       --source_dir ./data/german/ \
+       --dest_dir ./output/german/ \
+       --dim 100 \
+	    --min_count 15 \
+       --n_epochs 100 \
+       --window 5 \
+       --negative 5 \
+       --sg 1 \
+       --sample 1e-5 \
+       --ns_exponent 0.75 \
+       --workers 4
+   ```
 
 3. Generate outputs on language variations  </br>
    ```> python generate_outputs.py```
