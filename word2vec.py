@@ -1,4 +1,5 @@
-"""Train dynamic word embeddings with word2vec model
+"""Train dynamic word embeddings with word2vec model 
+    for one single language at a time
 
 Author: Hang Jiang (hjian42@icloud.com)
 """
@@ -60,8 +61,8 @@ def main():
     random.seed(123)
 
     parser = argparse.ArgumentParser(description="main training script for word2vec dynamic word embeddings...")
-    parser.add_argument("--source_dir", type=str, default="./data/german/", help="source dir")
-    parser.add_argument("--dest_dir", type=str, default="./output/german/", help="dest dir")
+    parser.add_argument("--source_dir", type=str, default="./data/english-uk/", help="source dir")
+    parser.add_argument("--dest_dir", type=str, default="./output/english-uk/", help="dest dir")
 
     # args for word2vec model
     parser.add_argument('--dim', type=int, default=100, help='Number of dimensions. Default is 100.')

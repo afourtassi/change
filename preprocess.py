@@ -161,13 +161,13 @@ def main():
     random.seed(123)
 
     parser = argparse.ArgumentParser(description="main training script for word2vec dynamic word embeddings...")
-    parser.add_argument("--source_dir", type=str, default="./data/german/raw", help="source dir")
-    parser.add_argument("--dest_dir", type=str, default="./data/german/", help="dest dir")
+    parser.add_argument("--source_dir", type=str, default="./data/english-uk/raw", help="source dir")
+    parser.add_argument("--dest_dir", type=str, default="./data/english-uk/", help="dest dir")
 
     # args for dividing the corpus
     parser.add_argument('--num_epochs', type=int, default=2, help='Number of epochs (parts) we divide the corpus.')
     parser.add_argument('--token_num_per_epoch', type=float, default=None, help='Number of tokens per epoch. Set None by default, when used, we stop using num_epochs.')
-    parser.add_argument('--num_shuffles', type=int, default=5, help='Number of shuffling.')
+    parser.add_argument('--num_shuffles', type=int, default=1, help='Number of shuffling.')
 
     # args for 
     args = parser.parse_args()
@@ -189,7 +189,9 @@ def main():
 
     ### generate divided original data
     periods, controlled_token_nums = divide_corpus(num_tokens, threshold_num)
-    aggregate_corpus_by_periods(childes_files, periods, os.path.join(args.dest_dir, 'proc'))
+    proc_folder = os.path.join(args.dest_dir, 'proc')
+    Path(proc_folder).mkdir(parents=True, exist_ok=True)
+    aggregate_corpus_by_periods(childes_files, periods, proc_folder)
 
     ## generate divided shuffled data
     for shuffle_id in range(args.num_shuffles):
