@@ -67,7 +67,7 @@ def main():
     # args for word2vec model
     parser.add_argument('--dim', type=int, default=100, help='Number of dimensions. Default is 100.')
     parser.add_argument('--min_count', type=int, default=15, help='Min frequency cutoff, only words more than this will be used for training.')
-    parser.add_argument('--n_epochs', type=int, default=100, help='Number of epochs. Default is 100.')
+    parser.add_argument('--n_epochs', type=int, default=2, help='Number of epochs. Default is 2.')
     parser.add_argument('--window', type=int, default=5, help='Window size for Skip-gram. Default is 5.')
     parser.add_argument('--negative', type=int, default=5, help='Number of negative samples. Default is 5.')
     parser.add_argument('--sg', type=int, default=1, help='0 for bow, 1 for skip-gram.')
@@ -75,7 +75,7 @@ def main():
     parser.add_argument('--ns_exponent', type=float, default=0.75, help='The exponent used to shape the negative sampling distribution.')
     parser.add_argument('--workers', type=int, default=4, help='# of workers for training (=faster training with multicore machines)')
 
-    # args for 
+    # args 
     args = parser.parse_args()
 
     # get proc and shuffle folders

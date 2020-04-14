@@ -22,10 +22,7 @@ import matplotlib.cm as cm
 import scipy.sparse as sparse
 
 
-def neighbors(query : str,
-              embs: np.ndarray,
-              vocab: list,
-              K : int = 3) -> list:
+def neighbors(query : str, embs: np.ndarray, vocab: list, K : int = 3) -> list:
     """returns k nearest neighbors for a query"""
     sims = np.dot(embs[vocab.index(query),],embs.T)
     output = []
@@ -147,7 +144,7 @@ def compute_global_cos_dist(year1, year2, vocs, vecs):
     return cos_dist
 
 
-def compute_embedding_shifts(year1, year2, vocs, vecs, emb_shift_file_path, num_neighbors=25):
+def compute_embedding_shifts(year1, year2, vocs, vecs, emb_shift_file_path, num_neighbors):
     """compute shift with both local and global metrics for all the words
         on one corpus
         
@@ -211,27 +208,107 @@ def compute_semantic_change(df_inventory, df_emb_shift, category_name):
     return local_change_per_category, global_change_per_category
 
 
+def get_word_change_over_time(model, query, years, vocs, vecs, num_neighbors):
+    """get the query and its neighbors cosine similarity in Google's
+        pretrained word2vec vector space
+        if not exist, the sim is 0
+    """
+
+    word_gold_sim = []
+    
+    if query in model.vocab:
+        for period in years:
+            if query not in vocs[period]:
+                word_gold_sim.append(0)
+                continue
+            neighbor_words = neighbors(query, vecs[period], vocs[period], K=num_neighbors)
+            sims = [model.similarity(query, w) for w in neighbor_words if w in model.vocab]
+            if sims:
+                word_gold_sim.append(sum(sims) / len(sims))
+            else:
+                word_gold_sim.append(0)
+    return word_gold_sim
+
+
+def get_w2v_sim(df_inventory, column_name, model, years, vocs, vecs, num_neighbors):
+    """get semantic changes"""
+    gold_change_per_category = defaultdict(list)
+    for group_name_tmp, group_df in df_inventory.groupby([column_name]):
+        gold_changes = []
+        for word in group_df.word.values:
+            gold_sims = get_word_change_over_time(model, word, years, vocs, vecs, num_neighbors)
+            if gold_sims:
+                gold_changes.append(gold_sims)
+            else:
+                gold_changes.append([0]*len(years))
+        gold_change_per_category[group_name_tmp] = np.array(gold_changes)
+    return gold_change_per_category
+
+
+def save_changes_to_csv(output_dir, df_inventory, model, years, vocs, vecs, num_neighbors):
+    """save each word's W2V-SIM changes in all periods to csv"""
+    data = []
+    column_name = 'category'  # use `category` to changes per group (using `lexical` is also fine, either works)
+    gold_change_per_category = get_w2v_sim(df_inventory, column_name, model, years, vocs, vecs, num_neighbors)
+    for group_name, group_df in df_inventory.groupby([column_name]):
+        for word, sims in zip(group_df.word.values, gold_change_per_category[group_name]):
+            lexical_class = df_inventory[df_inventory.word == word].values[0][-1]
+            row = []
+            row.append(word)
+            row.append(group_name)
+            row.append(lexical_class)
+            row.extend(sims)
+            data.append(row)
+    columns = ['word', 'category', 'lexical_class'] + years
+    df_change = pd.DataFrame(data, columns=columns)
+    output_path = os.path.join(output_dir, "google-w2v-changes-K{}.csv".format(num_neighbors))
+    df_change.to_csv(output_path)
+    return df_change
+
+
+def compute_distances_per_period(df_inventory, vocs, vecs, period):
+    """compute all sims between words in the word inventory for one period"""
+    intersected_words = set(df_inventory['word'].values).intersection(vocs[period])
+    voc_cdi = [w for w in vocs[period] if w in intersected_words]
+    vecs_cdi = np.array([v for i, v in enumerate(vecs[period]) if vocs[period][i] in intersected_words])
+    length = len(intersected_words)
+    assert len(voc_cdi) == len(vecs_cdi)
+    distances_period = []
+    w1_period = []
+    w2_period = []
+    for i in range(length):
+        distances = compute_cos_dist(np.tile(vecs_cdi[i], (length,1)), vecs_cdi)
+        distances_period.extend(distances)
+        w1_period.extend([voc_cdi[i]]*length)
+        w2_period.extend(voc_cdi)
+    return distances_period, w1_period, w2_period
+
+
+def run_word_inventory_sims_across_periods(df_inventory, vocs, vecs, years, output_dir):
+    for period in years:
+        print(period)
+        distances_period, w1_period, w2_period = compute_distances_per_period(df_inventory, vocs, vecs, period)
+        df_cdi_product_distance = pd.DataFrame({
+            'word1': w1_period,
+            'word2': w2_period,
+            'cos_dist': distances_period
+        })
+        output_file_path = os.path.join(output_dir, "{}_word_inventory_distance.csv".format(period))
+        df_cdi_product_distance.to_csv(output_file_path)
+
+
 def main():
     random.seed(123)
 
-    parser = argparse.ArgumentParser(description="main training script for word2vec dynamic word embeddings...")
+    parser = argparse.ArgumentParser(description="the output generation script")
     parser.add_argument("--source_dir", type=str, default="./output/english-uk/", help="source dir")
-    parser.add_argument("--dest_dir", type=str, default="./output/english-uk/", help="dest dir")
     parser.add_argument("--embedding_filename", type=str, default="embeddings-ep2-f15-d100-w5.pickle", help="specify which embedding file to use")
     parser.add_argument("--word_inventory", type=str, default="./data/english-uk/word_inventory.csv", help="specify which embedding file to use")
+    parser.add_argument("--google_word2vec", type=str, default="./data/google-word2vec/GoogleNews-vectors-negative300.bin", help="specify where google word2vec file is")
 
     # args for word2vec model
     parser.add_argument('--num_neighbors', type=int, default=25, help='Number of neighbors used for local measure. Default is 25.')
-    # parser.add_argument('--min_count', type=int, default=15, help='Min frequency cutoff, only words more than this will be used for training.')
-    # parser.add_argument('--n_epochs', type=int, default=100, help='Number of epochs. Default is 100.')
-    # parser.add_argument('--window', type=int, default=5, help='Window size for Skip-gram. Default is 5.')
-    # parser.add_argument('--negative', type=int, default=5, help='Number of negative samples. Default is 5.')
-    # parser.add_argument('--sg', type=int, default=1, help='0 for bow, 1 for skip-gram.')
-    # parser.add_argument('--sample', type=float, default=1e-5, help='The threshold for configuring which higher-frequency words are randomly downsampled.')
-    # parser.add_argument('--ns_exponent', type=float, default=0.75, help='The exponent used to shape the negative sampling distribution.')
-    # parser.add_argument('--workers', type=int, default=4, help='# of workers for training (=faster training with multicore machines)')
 
-    # args for 
     args = parser.parse_args()
 
     # get proc and shuffle folders
@@ -253,25 +330,25 @@ def main():
         years = sorted(years)
         first_year, last_year = years[0], years[-1]
         emb_shift_file_path = os.path.join(args.source_dir, folder_name, "embedding-shifts-K{}.csv".format(args.num_neighbors))
-        df_emb_shift = compute_embedding_shifts(first_year, last_year, year2vocab, year2embedding, emb_shift_file_path, num_neighbors=args.num_neighbors)
+        df_emb_shift = compute_embedding_shifts(first_year, last_year, year2vocab, year2embedding, emb_shift_file_path, args.num_neighbors)
 
         # compute semantic changes
         df_inventory =  pd.read_csv(args.word_inventory)
-        cat_local_change_per_category, \
-            cat_global_change_per_category = compute_semantic_change(df_inventory, df_emb_shift, 'category')
-        lex_local_change_per_category, \
-            lex_global_change_per_category = compute_semantic_change(df_inventory, df_emb_shift, 'lexical_class')
         print("intersection: ", len(set(df_inventory['word'].values).intersection(df_emb_shift.index)))
+        # cat_local_change_per_category, \
+        #     cat_global_change_per_category = compute_semantic_change(df_inventory, df_emb_shift, 'category')
+        # lex_local_change_per_category, \
+        #     lex_global_change_per_category = compute_semantic_change(df_inventory, df_emb_shift, 'lexical_class')
 
-        # TODO: compute dist b/w google-word2vec and our embeddings
+        output_dir = os.path.join(args.source_dir, folder_name)
 
-        break
-        # save dictionary in dest directory
-        # output_folder = os.path.join(args.dest_dir, folder_name, "embeddings-over-time")
-        # embedding_filename = "embeddings-ep{}-f{}-d{}-w{}.pickle".format(args.n_epochs, args.min_count, args.dim, args.window)
-        # Path(output_folder).mkdir(parents=True, exist_ok=True)
-        # with open(os.path.join(output_folder, embedding_filename), 'wb') as handle:
-        #     pickle.dump(year2vecs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # compute local cosine similarities b/w google-word2vec and our embeddings
+        google_w2v_model = gensim.models.KeyedVectors.load_word2vec_format(args.google_word2vec, binary=True)
+        save_changes_to_csv(output_dir, df_inventory, google_w2v_model, years, year2vocab, year2embedding, args.num_neighbors)
+
+        # compute cosine distance between word inventory words
+        run_word_inventory_sims_across_periods(df_inventory, year2vocab, year2embedding, years, output_dir)
+
 
 if __name__ == "__main__":
     main()

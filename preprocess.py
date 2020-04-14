@@ -169,7 +169,7 @@ def main():
     parser.add_argument('--token_num_per_epoch', type=float, default=None, help='Number of tokens per epoch. Set None by default, when used, we stop using num_epochs.')
     parser.add_argument('--num_shuffles', type=int, default=1, help='Number of shuffling.')
 
-    # args for 
+    # args
     args = parser.parse_args()
 
     # get all raw files
