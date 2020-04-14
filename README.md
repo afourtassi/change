@@ -12,26 +12,27 @@ This repository implements dynamic word embeddings for exploring the language va
 
 ### Train dynamic word embeddings
 
-We take the `german` language for example, whose raw csv files sit in `./data/german/raw/`.
+We take the `english-uk` language for example, whose raw csv files sit in `./data/german/raw/`. We also put the pre-computed `word_inventory.csv` for each language inside `./data/{language}/`. 
+
+Note that we only create one shuffled corpus and train 2 iterations below as a toy example.
 
 1. Preprocess data </br>
-
    ```shell
    python preprocess.py \
-       --source_dir ./data/german/raw \
-       --dest_dir ./data/german/ \
+       --source_dir ./data/english-uk/raw \
+       --dest_dir ./data/english-uk/ \
        --num_epochs 2 \
-       --num_shuffles 5       
+       --num_shuffles 1       
    ```
 
 2. Train models </br>
    ```shell
    python word2vec.py \
-       --source_dir ./data/german/ \
-       --dest_dir ./output/german/ \
+       --source_dir ./data/english-uk/ \
+       --dest_dir ./output/english-uk/ \
        --dim 100 \
        --min_count 15 \
-       --n_epochs 100 \
+       --n_epochs 2 \
        --window 5 \
        --negative 5 \
        --sg 1 \
@@ -41,7 +42,14 @@ We take the `german` language for example, whose raw csv files sit in `./data/ge
    ```
 
 3. Generate outputs on language variations  </br>
-   ```> python generate_outputs.py```
+   ```shell
+   python generate_outputs.py \
+       --source_dir ./output/english-uk/ \
+       --embedding_filename embeddings-ep2-f15-d100-w5.pickle \
+       --word_inventory ./data/english-uk/word_inventory.csv \
+       --google_word2vec ./data/google-word2vec/GoogleNews-vectors-negative300.bin \
+       --num_neighbors 25
+   ```
 
 ### Analysis
 
