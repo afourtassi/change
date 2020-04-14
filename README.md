@@ -54,3 +54,19 @@ Note that we only create one shuffled corpus and train 2 iterations below as a t
 ### Analysis
 
 The analysis code is in R. Please refer to `analysis` folder in the repository. 
+
+
+## Citation
+
+We now have the paper you can cite:
+```bibtex
+@misc{jiang_frank_kulkarni_fourtassi_2020,
+ title={Exploring patterns of stability and change in caregivers’ word usage across early childhood},
+ url={psyarxiv.com/fym86},
+ DOI={10.31234/osf.io/fym86},
+ publisher={PsyArXiv},
+ author={Jiang, Hang and Frank, Michael C and Kulkarni, Vivek and Fourtassi, Abdellah},
+ year={2020},
+ month={Feb}
+}
+```
