@@ -10,6 +10,16 @@ This repository implements dynamic word embeddings for exploring the language va
 1. install requirements </br>
    ```conda env create -f environment.yml```
 
+### Download data
+
+Run the commands to download the data from Google Drive and unzip it to be `data`
+
+1. get data </br>
+   ```shell
+   python download_gdrive.py 1NXMPs_f1crasC1JM50RSIJweLuPAG9Hk data.zip
+   unzip data.zip data
+   ```
+
 ### Train dynamic word embeddings
 
 We take the `english-uk` language for example, whose raw csv files sit in `./data/german/raw/`. We also put the pre-computed `word_inventory.csv` for each language inside `./data/{language}/`. 
@@ -19,8 +29,8 @@ Note that we only create one shuffled corpus and train 2 iterations below as a t
 1. Preprocess data </br>
    ```shell
    python preprocess.py \
-       --source_dir ./data/english-uk/raw \
-       --dest_dir ./data/english-uk/ \
+       --source_dir ./data/English-uk/raw \
+       --dest_dir ./data/English-uk/ \
        --num_epochs 2 \
        --num_shuffles 1       
    ```
@@ -28,8 +38,8 @@ Note that we only create one shuffled corpus and train 2 iterations below as a t
 2. Train models </br>
    ```shell
    python word2vec.py \
-       --source_dir ./data/english-uk/ \
-       --dest_dir ./output/english-uk/ \
+       --source_dir ./data/English-uk/ \
+       --dest_dir ./output/English-uk/ \
        --dim 100 \
        --min_count 15 \
        --n_epochs 2 \
@@ -44,9 +54,9 @@ Note that we only create one shuffled corpus and train 2 iterations below as a t
 3. Generate outputs on language variations  </br>
    ```shell
    python generate_outputs.py \
-       --source_dir ./output/english-uk/ \
+       --source_dir ./output/English-uk/ \
        --embedding_filename embeddings-ep2-f15-d100-w5.pickle \
-       --word_inventory ./data/english-uk/word_inventory.csv \
+       --word_inventory ./data/English-uk/word_inventory.csv \
        --google_word2vec ./data/google-word2vec/GoogleNews-vectors-negative300.bin \
        --num_neighbors 25
    ```
