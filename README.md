@@ -20,7 +20,7 @@ Run the commands to download the data from Google Drive and unzip it to be `data
 
 ### Train dynamic word embeddings
 
-We take the `english-uk` language for example, whose raw csv files sit in `./data/german/raw/`. We also put the pre-computed `word_inventory.csv` for each language inside `./data/{language}/`. 
+We take the `english-uk` language for example, whose raw csv files sit in `./data/german/raw/`. We also put the pre-computed `word_inventory.csv` for each language inside `./data/{language}/`. German and Japanese do not have `stem` column.
 
 Note that we only create one shuffled corpus and train 2 iterations below as a toy example.
 
@@ -30,7 +30,8 @@ Note that we only create one shuffled corpus and train 2 iterations below as a t
        --source_dir ./data/English-uk/raw \
        --dest_dir ./data/English-uk/ \
        --num_epochs 2 \
-       --num_shuffles 1       
+       --num_shuffles 1 \
+       --use_stem        
    ```
 
 2. Train models </br>

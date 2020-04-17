@@ -19,29 +19,37 @@ from collections import Counter
 from pathlib import Path
 
 
-def read_docs(csv_file, column='stem'):
+def read_docs(csv_file, use_stem=False):
     """read stem utterances from childes csv files"""
 
     df = pd.read_csv(csv_file)
     if len(df) == 0:
         return []
-    tags = df['part_of_speech'].values
-    stems = df['stem'].values
-    ret_list = []
-    for t, s in zip(tags, stems):
-        tl, sl = str(t).lower().split(), str(s).lower().split()
-        
-        # replace NAME and interjections with $name$ and (maybe) $co$ respectively
-        ntl = []
-        for t, s in zip(tl, sl):
-            if t == "n:prop":
-                ntl.append('$name$')
-#             elif t == 'co':
-#                 ntl.append('$co$')
-            else:
-                ntl.append(s)
-        if ntl != ['nan']: # add as a sentence only if we have meaningful input
+
+    if use_stem:
+        stems = df['stem'].values
+        tags = df['part_of_speech'].values
+        ret_list = []
+        for t, s in zip(tags, stems):
+            tl, sl = str(t).lower().split(), str(s).lower().split()
+            
+            # replace NAME and interjections with $name$ and (maybe) $co$ respectively
+            ntl = []
+            for t, s in zip(tl, sl):
+                if t == "n:prop":
+                    ntl.append('$name$')
+                else:
+                    ntl.append(s)
+            if ntl != ['nan']: # add as a sentence only if we have meaningful input
+                ret_list.append(ntl)
+    else:
+        # use only gloss
+        sents = df['gloss'].values
+        ret_list = []
+        for s in sents:
+            ntl = str(s).lower().split()
             ret_list.append(ntl)
+
     return ret_list
 
 
@@ -55,13 +63,13 @@ def write_sentences(sentences, output_path):
                 out.write("\n")
 
 
-def get_token_num_per_file(childes_files):
+def get_token_num_per_file(childes_files, use_stem):
     """get a list of token numbers per file"""
 
     num_tokens = []
     for filename in sorted(childes_files, key=lambda x: int(x.split('_')[-1][:-4])):
         month = int(filename.split('_')[-1][:-4])
-        lines = read_docs(filename)
+        lines = read_docs(filename, use_stem)
         num_tokens.append(sum([len(l) for l in lines]))
     print(num_tokens)
     return num_tokens
@@ -96,7 +104,7 @@ def divide_corpus(num_tokens, threshold_num):
     return periods, controlled_token_nums
 
 
-def aggregate_corpus_by_periods(childes_files, periods, dest_dir):
+def aggregate_corpus_by_periods(childes_files, periods, dest_dir, use_stem):
     """aggregate corpus into big chunk files by periods"""
 
     for i, period in enumerate(periods):
@@ -104,7 +112,7 @@ def aggregate_corpus_by_periods(childes_files, periods, dest_dir):
         print('key', 'period'+str(i))
         sents = []
         for filename in np.array(childes_files)[period]:
-            sents.extend(read_docs(filename))
+            sents.extend(read_docs(filename, use_stem))
 
 
         # write docs into one file
@@ -112,7 +120,7 @@ def aggregate_corpus_by_periods(childes_files, periods, dest_dir):
         write_sentences(sents, os.path.join(dest_dir, output_filename))
 
 
-def create_shuffled_divided_corpus(childes_files, num_tokens, controlled_token_nums, dest_dir, shuffle_id):
+def create_shuffled_divided_corpus(childes_files, num_tokens, controlled_token_nums, dest_dir, shuffle_id, use_stem):
     """use controlled_token_nums to create shuffled corpus of similar sizes"""
     
     # make directory for the shuffle
@@ -122,7 +130,7 @@ def create_shuffled_divided_corpus(childes_files, num_tokens, controlled_token_n
     # get all sentences
     sentences = []  
     for filename in childes_files:
-        sentences.extend(read_docs(filename))
+        sentences.extend(read_docs(filename, use_stem))
 
     print("Before shuffling:")
     print(sentences[0])
@@ -168,7 +176,7 @@ def main():
     parser.add_argument('--num_epochs', type=int, default=2, help='Number of epochs (parts) we divide the corpus.')
     parser.add_argument('--token_num_per_epoch', type=float, default=None, help='Number of tokens per epoch. Set None by default, when used, we stop using num_epochs.')
     parser.add_argument('--num_shuffles', type=int, default=1, help='Number of shuffling.')
-
+    parser.add_argument("--use_stem", action="store_true", help="default is to use `gloss`, otherwise use stem")
     # args
     args = parser.parse_args()
 
@@ -177,7 +185,7 @@ def main():
                             key=lambda x: int(x.split('_')[-1][:-4]))
 
     # get num_tokens list
-    num_tokens = get_token_num_per_file(childes_files)
+    num_tokens = get_token_num_per_file(childes_files, args.use_stem)
 
     # mkdir output dir
     Path(args.dest_dir).mkdir(parents=True, exist_ok=True)
@@ -191,13 +199,13 @@ def main():
     periods, controlled_token_nums = divide_corpus(num_tokens, threshold_num)
     proc_folder = os.path.join(args.dest_dir, 'proc')
     Path(proc_folder).mkdir(parents=True, exist_ok=True)
-    aggregate_corpus_by_periods(childes_files, periods, proc_folder)
+    aggregate_corpus_by_periods(childes_files, periods, proc_folder, args.use_stem)
 
     ## generate divided shuffled data
     for shuffle_id in range(args.num_shuffles):
         print("shuffle_{}".format(shuffle_id))
         create_shuffled_divided_corpus(childes_files, num_tokens, \
-            controlled_token_nums, args.dest_dir, shuffle_id)
+            controlled_token_nums, args.dest_dir, shuffle_id, args.use_stem)
 
 
 if __name__ == "__main__":
