@@ -8,13 +8,11 @@ This repository implements dynamic word embeddings for exploring the language va
 
 #### Install via conda:
 1. install requirements </br>
-   ```conda env create -f environment.yml```
+   ```pip install -r requirements.txt```
 
 ### Download data
 
 Run the commands to download the data from Google Drive and unzip it to be `data`
-
-1. get data </br>
    ```shell
    python download_gdrive.py 1NXMPs_f1crasC1JM50RSIJweLuPAG9Hk data.zip
    unzip data.zip data
