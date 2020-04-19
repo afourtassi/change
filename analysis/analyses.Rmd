@@ -1,0 +1,701 @@
+
+---
+title: "Parents Change the Way they Use Words as Children Develop"
+date: "21/01/2019"
+output: html_document
+---
+```{r include = FALSE}
+  library(broom)
+  library(purrr)
+  library(readr)
+  library(ggplot2)
+  library(dplyr)
+  library(tidyr)
+  library(wordbankr)
+  library(stringr)
+  library(feather)
+  library(lme4)
+  library(boot)
+  #library(langcog)
+  library(ggthemes)
+  library(nlme)
+  #library(rwebppl)
+  library(jsonlite)
+  library(Hmisc)
+  library(poweRlaw)
+  library(HDInterval)
+  library(kableExtra)
+  library(ggrepel)
+  library(ggpubr)
+  library(plyr)
+  library(lmerTest)
+  library(stargazer)
+
+rename <- dplyr::rename
+summarise <- dplyr::summarise
+
+knitr::opts_chunk$set(echo=F, warning=F, cache=F, message=F, sanitize = T)
+
+```
+
+
+
+
+Load the data about shifts between the first and last epochs: one for the real corpus and one for the shuffled corpora
+```{r }
+categories <- read.csv("data/merged_cdi_color.csv") %>%
+  select(-X) 
+
+change <- read.csv("data/cdi_output_en/embedding-shifts.csv") %>%
+  rename(word = X) %>%
+  mutate(shuff = 0) %>%
+  mutate(corpus = "real")
+
+change_shuff <- read.csv("data/cdi_output_en_shuffle/embedding-shifts.csv") %>%
+  mutate(shuff = 1) %>%
+  bind_rows(read.csv("data/cdi_output_en_shuffle1/embedding-shifts.csv") %>%
+              mutate(shuff = 2)) %>%
+  bind_rows(read.csv("data/cdi_output_en_shuffle2/embedding-shifts.csv") %>%
+              mutate(shuff = 3)) %>%
+  bind_rows(read.csv("data/cdi_output_en_shuffle3/embedding-shifts.csv") %>%
+              mutate(shuff = 4)) %>%
+  bind_rows(read.csv("data/cdi_output_en_shuffle4/embedding-shifts.csv") %>%
+              mutate(shuff = 5)) %>%
+  bind_rows(read.csv("data/cdi_output_en_shuffle5/embedding-shifts.csv") %>%
+              mutate(shuff = 6))  %>%
+  rename(word = X) %>%
+  mutate(corpus = "shuffled")
+  
+change_all <- change %>%
+  bind_rows(change_shuff)
+
+change_by_category <- categories %>%
+  left_join(change_all) %>%
+  filter(!(is.na(local))) %>%
+  gather(measure, value, local, global)
+```
+
+
+Load the data in each epoch
+```{r }
+#These data are for 2M per epoch
+change0 <- read.csv("data/cdi_output_en/period0_cdi_dist.csv") %>%
+  mutate(period = 0) 
+change1 <- read.csv("data/cdi_output_en/period1_cdi_dist.csv") %>%
+  mutate(period = 1) 
+change2 <- read.csv("data/cdi_output_en/period2_cdi_dist.csv") %>%
+  mutate(period = 2) 
+change3 <- read.csv("data/cdi_output_en/period3_cdi_dist.csv") %>%
+  mutate(period = 3) 
+change4 <- read.csv("data/cdi_output_en/period4_cdi_dist.csv") %>%
+  mutate(period = 4) 
+change5 <- read.csv("data/cdi_output_en/period5_cdi_dist.csv") %>%
+  mutate(period = 5) 
+
+change_all_2M <- change0 %>%
+  bind_rows(change1) %>%
+  bind_rows(change2) %>%
+  bind_rows(change3) %>%
+  bind_rows(change4) %>%
+  bind_rows(change5) 
+
+change_cat <-change_all_2M %>%
+  select(-X) %>%
+  rename(word = word1) %>%
+  left_join(categories) %>%
+  rename(
+    word1 = word,
+    sem1 = category,
+    synt1 = lexical_class) %>%
+  rename(word =  word2) %>%
+  left_join(categories) %>%
+  rename(
+    word2 = word,
+    sem2 = category,
+    synt2 = lexical_class) %>%
+  mutate(cos_sim = 1 - cos_dist) %>%
+  select(-cos_dist) %>%
+  mutate(corpus = "real")
+  
+```
+
+
+Load the data in each epoch for one shuffled coprus
+```{r}
+
+#These data are for 2M per epoch
+change0_shuf <- read.csv("data/cdi_output_en_shuffle/period0_cdi_dist.csv") %>%
+  mutate(period = 0) 
+change1_shuf <- read.csv("data/cdi_output_en_shuffle/period1_cdi_dist.csv") %>%
+  mutate(period = 1) 
+change2_shuf <- read.csv("data/cdi_output_en_shuffle/period2_cdi_dist.csv") %>%
+  mutate(period = 2) 
+change3_shuf <- read.csv("data/cdi_output_en_shuffle/period3_cdi_dist.csv") %>%
+  mutate(period = 3) 
+change4_shuf <- read.csv("data/cdi_output_en_shuffle/period4_cdi_dist.csv") %>%
+  mutate(period = 4) 
+change5_shuf <- read.csv("data/cdi_output_en_shuffle/period5_cdi_dist.csv") %>%
+  mutate(period = 5) 
+
+change_all_2M_shuf <- change0_shuf %>%
+  bind_rows(change1_shuf) %>%
+  bind_rows(change2_shuf) %>%
+  bind_rows(change3_shuf) %>%
+  bind_rows(change4_shuf) %>%
+  bind_rows(change5_shuf) 
+
+change_cat_shuf <-change_all_2M_shuf %>%
+  select(-X) %>%
+  rename(word = word1) %>%
+  left_join(categories) %>%
+  rename(
+    word1 = word,
+    sem1 = category,
+    synt1 = lexical_class) %>%
+  rename(word =  word2) %>%
+  left_join(categories) %>%
+  rename(
+    word2 = word,
+    sem2 = category,
+    synt2 = lexical_class) %>%
+  mutate(cos_sim = 1 - cos_dist) %>%
+  select(-cos_dist) %>%
+  mutate(corpus = "shuffled")
+
+change_cat_all <- change_cat %>%
+  bind_rows(change_cat_shuf)
+```
+
+
+Change for syntactic categories 
+
+
+```{r echo=FALSE}
+change_sum_synt <- change_by_category %>%
+  group_by(lexical_class, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se) 
+
+
+change_sum_synt_shuff <- change_by_category_shuff %>%
+  group_by(lexical_class, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se) 
+
+
+
+change_sum_synt_all <- change_sum_synt %>%
+  mutate(corpus = 'real') %>%
+  bind_rows(change_sum_synt_shuff %>%
+              mutate(corpus ='shuffled'))
+```
+
+
+```{r echo=FALSE fig.width=2, fig.height=1.5}
+
+change_sum_synt <- change_by_category %>%
+  group_by(lexical_class, measure, corpus) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se) 
+
+
+change_sum_synt$lexical_class <- factor(change_sum_synt$lexical_class, levels = c('function_words', 'other', 'verbs', 'adjectives', 'nouns'))
+
+ggplot(data = filter(change_sum_synt, measure =='local', lexical_class != "other"), 
+       aes(x = lexical_class, y = mean, fill = corpus)) + 
+  geom_bar(stat="identity", position=position_dodge())+
+  geom_linerange(aes(ymin = lower, ymax = upper), 
+                  position = position_dodge(width = .9), size = 0.6) +
+  
+  #geom_bar(data= filter(change_sum_synt, measure =='local', lexical_class != "other", corpus =="shuffled"),
+  #           stat="identity", position=position_dodge())+
+  
+  #geom_linerange(data= filter(change_sum_synt, measure =='local', lexical_class != "other", corpus =="shuffled"),
+  #                            aes(ymin = lower, ymax = upper), 
+  #                position = position_dodge(width = .9), size = 0.6, fatten = 2) +
+  
+  xlab("Syntactic Category") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=14, angle = 0),
+        strip.text.x = element_text(size=10),
+        strip.text.y = element_text(size=10),
+        axis.title=element_text(size=16))+
+  expand_limits(y = 0)
+
+
+
+```
+
+
+Change for semantic categories
+
+```{r echo=FALSE,  fig.width=5, fig.height=2}
+change_total <- change_by_category %>%
+  group_by(measure, corpus) %>%
+  dplyr::summarise(total = n())
+
+change_sum_sem <- change_by_category %>%
+  group_by(corpus, lexical_class, category, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -se) %>%
+  left_join(change_total) %>%
+  mutate(percent = (100*n)/total)
+
+
+change_total_shuff <- change_by_category_shuff %>%
+  group_by(measure) %>%
+  dplyr::summarise(total = n())
+
+change_sum_sem_shuff <- change_by_category_shuff %>%
+  group_by(lexical_class, category, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -se) %>%
+  left_join(change_total_shuff) %>%
+  mutate(percent = (100*n)/total)
+
+
+
+change_sum_sem_all <- change_by_category%>%
+  group_by(corpus, lexical_class, category, measure) %>%
+  dplyr::summarise(mean = mean(value),
+                   sd = sd(value),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -se) 
+
+
+change_sum_sem_all$category <- factor(change_sum_sem_all$category, levels = c('connecting_words', 'number', 'helping_verbs', 'pronouns', 'quantifiers',
+                                                                              'clothing', 'question_words', 'locations', 'time_words', 'food_drink',
+                                                                              'games_routines', 'body_parts', 'color', 'vehicles', 'action_words',
+                                                                              'descriptive_words', 'household', 'toys', 'furniture_rooms', 'places',
+                                                                              'people', 'outside', 'sounds', 'animals'))
+
+
+ggplot(filter(change_sum_sem_all, measure =='local'), 
+       aes(x = category, y = mean, fill = corpus)) + 
+  geom_bar(stat="identity", position=position_dodge())+
+  geom_linerange(aes(ymin = lower, ymax = upper), 
+                  position = position_dodge(width = .9), size = 0.4) + 
+  xlab("Semantic category") +ylab("Change") +
+  theme_few()+
+   theme(
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6))+
+  #facet_grid(measure~., scales ="free")+
+  expand_limits(y = 0)
+```
+
+Predictor of change: Frequency
+
+```{r}
+
+#Here combine all predictors:
+
+freq <- read.csv("childes_data/log_freq.csv") %>%
+  rename(word = uni_lemma) 
+
+polysemy <- read.csv("data/merged_cdi_polysemy.csv") %>%
+  select(-X) %>%
+  filter(polysemy != 0,
+         !is.na(polysemy)) %>%
+  mutate(polysemy = log(polysemy))
+  
+
+change_by_freq_poly_all <- change_by_category_all %>%
+  left_join(freq) %>%
+  filter(!is.na(freq)) %>%
+  left_join(polysemy) 
+
+
+#I need to do ggoogle at the individiual level as well
+  
+ggplot(filter(change_by_freq_poly_all, measure =='local'), 
+       aes(x = freq, y = value, col = corpus)) +
+  geom_point(alpha=0.2)+
+  geom_smooth(method = lm)+
+  xlab("Frequency") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6)) +
+  #stat_cor(method = "pearson", label.x.npc = "center")  +
+  facet_grid(. ~ measure, scales ="free" )
+
+
+
+```
+
+Predictor of change: Frequency
+
+```{r}
+ggplot(filter(change_by_freq_poly_all, measure =='local'), 
+       aes(x = polysemy, y = value, col = corpus)) +
+  geom_point(alpha=0.2)+
+  geom_smooth(method = lm)+
+  xlab("Polysemy") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6)) +
+  #stat_cor(method = "pearson", label.x.npc = "center")  +
+  facet_grid(. ~ measure, scales ="free" )
+
+```
+
+
+### Semantic density
+
+So far, we explored how change can be predicted by the properties of individual words. 
+
+Is there also an effect of the way words are organized into semantic categories?
+
+For example, categories that undergo most change maybe be made of words that are more loosely tied together, i.e., have lower semantic density.  
+
+Figure below shows how the density of a semantic category (characterized as the average of pairwise similarity between its member words) predicts change at the word level.
+
+We found an effect of density (interaction between "density" and "condition"). 
+
+```{r echo=FALSE}
+
+#The centrality measure takes the higest external connection in with each cluter, and sums over  all clustere
+
+
+density_by_period <- change_cat_all %>%
+  na.omit() %>%
+  #group_by(period, sem1, word1) %>%
+  #top_n(ngbr, cos_sim) %>%
+  group_by(corpus, period, sem1, word1, sem2) %>%
+  summarise(mean_sim = mean(cos_sim),
+            median_sim=median(cos_sim)) %>%
+  group_by(corpus, period, sem1, sem2) %>%
+  summarise(mean = mean(mean_sim),
+            sd = sd(mean_sim),
+            n = n()) 
+
+
+density <- density_by_period %>%
+  filter(sem1 == sem2) %>%
+  ungroup() %>%
+  select(corpus, period, sem1, mean) %>%
+  rename(category = sem1,
+         density = mean) %>%
+  filter(period == 0)
+
+
+#change_by_freq_poly_density <- filter(change_by_freq_poly_all) %>%
+#  left_join(density) 
+
+
+
+
+centrality <- change_cat_all %>%
+  na.omit() %>%
+  filter(sem1 != sem2) %>%
+  group_by(corpus, period, sem1, word1, sem2) %>%
+  top_n(10, cos_sim) %>%
+  group_by(corpus, period, sem1) %>%
+  summarise(mean = mean(cos_sim)) %>%
+  rename(category = sem1,
+         centrality = mean)  %>%
+  filter(period == 0) 
+
+ggplot(density_centrality, 
+       aes(x = density, y = centrality)) +
+  geom_point()+
+  xlab("Density") +ylab("Centrality") +
+  geom_text_repel(aes(label=category), 
+            size = 4, hjust=0, vjust=0) +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=12, angle = 45),
+        strip.text.x = element_text(size=10),
+        strip.text.y = element_text(size=10)) 
+  #stat_cor(method = "pearson", label.x.npc = "center")
+
+
+change_by_freq_poly_density_centrality <- filter(change_by_freq_poly_all) %>%
+  left_join(density) %>%
+  left_join(centrality) 
+
+
+ggplot(filter(change_by_freq_poly_density_centrality, measure =='local'), 
+       aes(x = density, y = value, col = corpus)) +
+  geom_point(alpha=0.2)+
+  geom_smooth(method = lm)+
+  xlab("Density (t=0)") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6)) +
+  #stat_cor(method = "pearson", label.x.npc = "center")  +
+  facet_grid(. ~ measure, scales ="free" )
+
+
+ggplot(filter(change_by_freq_poly_density_centrality, measure =='local'), 
+       aes(x = centrality, y = value, col = corpus)) +
+  geom_point(alpha=0.2)+
+  geom_smooth(method = lm)+
+  xlab("Centrality (t=0)") +ylab("Change") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6)) +
+  #stat_cor(method = "pearson", label.x.npc = "center")  +
+  facet_grid(. ~ measure, scales ="free" )
+
+cor.test((density %>% filter(corpus =="real"))$density, (centrality %>% filter(corpus =="real"))$centrality)
+
+```
+
+
+Here compute purity 
+
+```{r}
+
+N_cat <- categories %>%
+  group_by(category) %>%
+  summarise(N=n()) %>%
+  ungroup() %>%
+  rename(sem1 = category)
+
+purity_by_period <- change_cat %>%
+  #filter(synt1 == "nouns" | synt1 == "other",
+   #     synt2 == "nouns" | synt2 == "other") %>%
+  filter(!is.na(sem1), 
+         !is.na(sem2),
+         word1 !=  word2
+         ) %>%
+  left_join(N_cat) %>%
+  group_by(period, sem1, word1) %>%
+  top_n(N-1, cos_sim) %>%
+  group_by(period, sem1, word1, N, sem2) %>%
+  summarise(percent=n()) %>%
+  mutate(percent = percent/N) %>%
+  group_by(period, sem1, sem2) %>%
+  summarise(mean = mean(percent),
+                   sd = sd(percent),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se)  
+  
+density <- density_by_period %>%
+  filter(sem1 == sem2) %>%
+  filter(period ==0 | period == 5) %>%
+  ungroup() %>%
+  select(period, corpus, sem1, mean) %>%
+  rename(category = sem1,
+         density = mean)
+
+purity <- purity_by_period %>%
+  filter(sem1 == sem2) %>%
+  filter(period ==0 | period == 5) %>%
+  ungroup() %>%
+  select(period, sem1, mean) %>%
+  rename(category = sem1,
+         purity = mean)
+
+purity_density <- purity %>%
+  left_join(density %>% filter(corpus =="real")) %>%
+  select(-corpus)
+
+ggplot(filter(purity_density, period==0), 
+       aes(x = density, y = purity)) +
+  geom_point(alpha=0.4)+
+  geom_text_repel(aes(label=category), 
+            size = 2, hjust=0, vjust=0) +
+  #geom_smooth(method = lm, se=F)+
+  xlab("Density") +ylab("Purity") +
+  theme_few()+
+   theme(aspect.ratio = 0.7,
+        axis.text=element_text(size=7, angle = 45),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6)) +
+  facet_grid(. ~ period, scales ="free" )
+  
+
+cor(purity_density$density, purity_density$purity)
+
+```
+
+Plot all:
+
+```{r fig.width=4, fig.height=1.5}
+
+predictors <-  change_by_freq_poly_density_centrality %>%
+  filter(measure =="local") %>%
+  select(-period) %>%
+  rename(change = value) %>%
+  mutate_at(c('change', 'freq', 'polysemy', 'density', 'centrality'), funs(as.numeric(scale(.)))) 
+
+data_plot <-predictors %>%
+  gather(predictor, value, freq:centrality) 
+
+data_plot$predictor <- mapvalues(data_plot$predictor, from = c("density",
+                                                               "centrality",
+                                                               "freq",
+                                                               "polysemy"), to = c("Category Density", 
+                                                                                   "Category Centrality",
+                                                                                   "Word Frequency",
+                                                                                   "Word Polysemy"))
+
+
+data_plot$predictor <- factor(data_plot$predictor, levels = c( "Category Density", "Category Centrality", "Word Frequency","Word Polysemy"))
+
+feather::write_feather(predictors, "saved/predictors.feather")
+
+
+plot_file <- ggplot(filter(data_plot, 
+              measure =='local',
+              predictor == 'Word Frequency' | predictor == 'Category Density' 
+              ),
+       aes(x = value, y = change, col = corpus)) +
+  geom_point(alpha=0.1)+
+  geom_smooth(method = lm)+
+  xlab("¨Predictor z-score") +ylab("Change z-score") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=9, angle = 45),
+        strip.text.x = element_text(size=9),
+        strip.text.y = element_text(size=9)) +
+  #stat_cor(method = "pearson", label.x.npc = "center")  +
+  facet_wrap(~ predictor, scales ="free" ) #+
+  #theme(legend.position="bottom")
+
+
+plot_file
+
+```
+
+
+
+### Comparing predictors
+
+When we put all the predictors in the same mixed-effects model, we found an effect of both "frequency" and "density", as well as a three-way interaction between "frequency", "density" and "condition".
+
+Note: when using "freq" as a slope in the random factor, the model tends to overfit (see warning at the end "Singular fit"). To be sure, I will run a bayesian regression later.
+
+```{r results='asis'}
+
+predictors <- feather::read_feather("saved/perdictors.feather")
+                                    
+model <- lmer(change ~ freq*density*corpus + ( freq | lexical_class ), data =predictors)
+
+summary(model)
+
+
+```
+
+
+```{r echo=FALSE}
+#here compute the average across the semantic category
+
+
+N_cat <- categories %>%
+  group_by(category) %>%
+  summarise(N=n()) %>%
+  ungroup() %>%
+  rename(sem1 = category)
+
+change_by_period <- change_cat %>%
+  #filter(synt1 == "nouns" | synt1 == "other",
+   #     synt2 == "nouns" | synt2 == "other") %>%
+  filter(!is.na(sem1), 
+         !is.na(sem2),
+         word1 !=  word2
+         ) %>%
+  left_join(N_cat) %>%
+  group_by(period, sem1, word1) %>%
+  top_n(N-1, cos_sim) %>%
+  group_by(period, sem1, word1, N, sem2) %>%
+  summarise(percent=n()) %>%
+  mutate(percent = percent/N) %>%
+  group_by(period, sem1, sem2) %>%
+  summarise(mean = mean(percent),
+                   sd = sd(percent),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se)  
+  
+  
+#Interesting categories: people (lower relationhsip with vehicles),
+categ <- change_by_period %>%
+  filter(sem1 == sem2,
+         period == 0 | period == 5) %>%
+  filter(sem1 %in% c('number', 'time_words', 'color')) %>%
+  mutate(sem1 = ifelse(sem1 =="time_words", "time", 
+                       ifelse(sem1 =="number", "number", 'color'))) %>%
+  mutate(epoch = ifelse(period == 0, 'First', 'Last')) %>%
+  rename(category = sem1) %>%
+  select(-sem2)
+
+categ_av <- change_by_period %>%
+  filter(sem1 == sem2,
+         period == 0 | period == 5) %>%
+  select(-sem2, -lower, -upper) %>%
+  rename(purity=mean) %>%
+  group_by(period) %>%
+  summarise(mean = mean(purity),
+                   sd = sd(purity),
+                   n = n()) %>%
+  mutate(se = sd / sqrt(n),
+         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
+         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
+  select(-sd, -n, -se)  %>%
+  mutate(epoch = ifelse(period == 0, 'First', 'Last')) %>%
+  mutate(category = 'average')
+  
+
+ggplot(bind_rows(categ,categ_av) , 
+       aes(x = epoch, y = mean, fill=category)) + 
+  geom_col(position = "dodge")+
+  geom_linerange(aes(ymin = lower, ymax = upper), 
+                  position = position_dodge(width = 0.9), size = 0.4) + 
+  #geom_pointrange(data= categ_av, aes(x=epoch, y = mean), 
+  #                position = position_dodge(width = 0.9), size = 0.4, fatten = 2) +
+  #geom_hline(yintercept=1, linetype= "dashed", color= "black", size=1)+
+  xlab("Epochs") +ylab("Purity") +
+  theme_few()+
+   theme(aspect.ratio = 0.7, 
+        axis.text=element_text(size=13, angle = 0),
+        strip.text.x = element_text(size=7),
+        strip.text.y = element_text(size=6)) +
+  coord_cartesian(ylim=c(0,1))
+  #facet_grid(sem1~., scales ="free")
+```
