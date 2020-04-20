@@ -170,37 +170,6 @@ change_cat_all <- change_cat %>%
 Change for syntactic categories 
 
 
-```{r echo=FALSE}
-change_sum_synt <- change_by_category %>%
-  group_by(lexical_class, measure) %>%
-  dplyr::summarise(mean = mean(value),
-                   sd = sd(value),
-                   n = n()) %>%
-  mutate(se = sd / sqrt(n),
-         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
-         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
-  select(-sd, -n, -se) 
-
-
-change_sum_synt_shuff <- change_by_category_shuff %>%
-  group_by(lexical_class, measure) %>%
-  dplyr::summarise(mean = mean(value),
-                   sd = sd(value),
-                   n = n()) %>%
-  mutate(se = sd / sqrt(n),
-         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
-         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
-  select(-sd, -n, -se) 
-
-
-
-change_sum_synt_all <- change_sum_synt %>%
-  mutate(corpus = 'real') %>%
-  bind_rows(change_sum_synt_shuff %>%
-              mutate(corpus ='shuffled'))
-```
-
-
 ```{r echo=FALSE fig.width=2, fig.height=1.5}
 
 change_sum_synt <- change_by_category %>%
