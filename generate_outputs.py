@@ -252,13 +252,15 @@ def save_changes_to_csv(output_dir, df_inventory, model, years, vocs, vecs, num_
     gold_change_per_category = get_w2v_sim(df_inventory, column_name, model, years, vocs, vecs, num_neighbors)
     for group_name, group_df in df_inventory.groupby([column_name]):
         for word, sims in zip(group_df.word.values, gold_change_per_category[group_name]):
-            lexical_class = df_inventory[df_inventory.word == word].values[0][-1]
-            row = []
-            row.append(word)
-            row.append(group_name)
-            row.append(lexical_class)
-            row.extend(sims)
-            data.append(row)
+            values = df_inventory[df_inventory.word == word].values
+            if len(values) > 0:
+                lexical_class = values[0][-1]
+                row = []
+                row.append(word)
+                row.append(group_name)
+                row.append(lexical_class)
+                row.extend(sims)
+                data.append(row)
     columns = ['word', 'category', 'lexical_class'] + years
     df_change = pd.DataFrame(data, columns=columns)
     output_path = os.path.join(output_dir, "google-w2v-changes-K{}.csv".format(num_neighbors))
@@ -302,7 +304,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="the output generation script")
     parser.add_argument("--source_dir", type=str, default="./output/english-uk/", help="source dir")
-    parser.add_argument("--embedding_filename", type=str, default="embeddings-ep2-f15-d100-w5.pickle", help="specify which embedding file to use")
+    parser.add_argument("--embedding_filename", type=str, default="embeddings-ep50-f15-d100-w5.pickle", help="specify which embedding file to use")
     parser.add_argument("--word_inventory", type=str, default="./data/english-uk/word_inventory.csv", help="specify which embedding file to use")
     parser.add_argument("--google_word2vec", type=str, default="./data/google-word2vec/GoogleNews-vectors-negative300.bin", help="specify where google word2vec file is")
 
@@ -318,6 +320,8 @@ def main():
         if os.path.isdir(folder_path):
             if file != "raw":
                 folder_names.append(file)
+    
+    google_w2v_model = gensim.models.KeyedVectors.load_word2vec_format(args.google_word2vec, binary=True)
 
     for folder_name in folder_names:
         embedding_file_path = os.path.join(args.source_dir, folder_name, "embeddings-over-time", args.embedding_filename)
@@ -343,7 +347,6 @@ def main():
         output_dir = os.path.join(args.source_dir, folder_name)
 
         # compute local cosine similarities b/w google-word2vec and our embeddings
-        google_w2v_model = gensim.models.KeyedVectors.load_word2vec_format(args.google_word2vec, binary=True)
         save_changes_to_csv(output_dir, df_inventory, google_w2v_model, years, year2vocab, year2embedding, args.num_neighbors)
 
         # compute cosine distance between word inventory words
