@@ -215,42 +215,9 @@ ggplot(data = filter(change_sum_synt, measure =='local', lexical_class != "other
 Change for semantic categories
 
 ```{r echo=FALSE,  fig.width=5, fig.height=2}
-change_total <- change_by_category %>%
-  group_by(measure, corpus) %>%
-  dplyr::summarise(total = n())
-
-change_sum_sem <- change_by_category %>%
-  group_by(corpus, lexical_class, category, measure) %>%
-  dplyr::summarise(mean = mean(value),
-                   sd = sd(value),
-                   n = n()) %>%
-  mutate(se = sd / sqrt(n),
-         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
-         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
-  select(-sd, -se) %>%
-  left_join(change_total) %>%
-  mutate(percent = (100*n)/total)
 
 
-change_total_shuff <- change_by_category_shuff %>%
-  group_by(measure) %>%
-  dplyr::summarise(total = n())
-
-change_sum_sem_shuff <- change_by_category_shuff %>%
-  group_by(lexical_class, category, measure) %>%
-  dplyr::summarise(mean = mean(value),
-                   sd = sd(value),
-                   n = n()) %>%
-  mutate(se = sd / sqrt(n),
-         lower = mean - qt(1 - (0.05 / 2), n - 1) * se,
-         upper = mean + qt(1 - (0.05 / 2), n - 1) * se) %>%
-  select(-sd, -se) %>%
-  left_join(change_total_shuff) %>%
-  mutate(percent = (100*n)/total)
-
-
-
-change_sum_sem_all <- change_by_category%>%
+change_sum_sem_all <- change_by_category %>%
   group_by(corpus, lexical_class, category, measure) %>%
   dplyr::summarise(mean = mean(value),
                    sd = sd(value),

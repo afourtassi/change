@@ -23,6 +23,13 @@ Libraries
   library(kableExtra)
 ```
 
+```{r}
+library(childesr)
+d_transcripts <- get_transcripts() 
+
+d_english <- d_transcripts %>%
+  filter(collection_name == "Eng-NA")
+```
 
 Load data 
 ```{r}
